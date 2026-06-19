@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D Graphics - Maze Game</title>
+  </head>
+  <body>
+    <canvas id="darkness-overlay"></canvas>
+    
+    <!-- HUD will be generated dynamically by createHUD() in main.ts -->
+    
+    <div id="help-ui">
+      <h3>Controls</h3>
+      <p>WASD / Arrow Keys: Move</p>
+      <p>B: Bounding Debug</p>
+      <p>L: Lighting Debug</p>
+      <p>H: Help UI Toggle</p>
+    </div>
+
+    <div id="clear-ui" style="display: none; pointer-events: auto;">
+      <h1>CLEAR!</h1>
+      <h2 id="final-score">Final Score: 5</h2>
+      <button id="restart-btn">Restart Game</button>
+    </div>
+    
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
