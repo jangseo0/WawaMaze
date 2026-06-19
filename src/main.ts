@@ -1,24 +1,20 @@
 import './style.css';
 import * as THREE from 'three';
 import { createMazeFromMap, sceneMeshesForGI, wallMeshesForRaycast, mazeMap, validateMazePath } from './maze';
-import type { Coin, ExitZone } from './maze';
+import type { Coin } from './maze';
 import { Player, updatePlayerAnimation } from './player';
 import { FollowCamera } from './camera';
-import { updateFrustumCulling, cullingObjects, debugCulling, setDebugCulling } from './culling';
+import { updateFrustumCulling } from './culling';
 import { 
   generateSurfelsFromMaze, 
   buildSurfelNeighbors, 
   createSurfelDebugObjects, 
-  updateSurfelGI, 
-  surfels,
-  debugSurfels,
-  setDebugSurfels,
-  updateSurfelDebugObjects
+  updateSurfelGI
 } from './surfel';
 
 const LIGHT_RADIUS_IN_TILES = 3;
 const TILE_SIZE = 2;
-const LIGHT_RADIUS_WORLD = LIGHT_RADIUS_IN_TILES * TILE_SIZE;
+
 
 const LIGHT_RADIUS_PIXELS = 95;
 const LIGHT_SOFTNESS_PIXELS = 70;
@@ -40,7 +36,6 @@ let isGameClear = false;
 // Debug States
 let debugBoundingVolumes = false;
 let debugFogOfWar = true;
-let debugNormalMap = true;
 let debugHelp = true;
 
 // UI Elements
@@ -292,7 +287,7 @@ function updatePlayerLightPosition(): void {
   }
 }
 
-function updateFlashlight(deltaTime: number): void {
+function updateFlashlight(): void {
   updatePlayerLightPosition();
 }
 
@@ -399,7 +394,7 @@ function animate() {
   }
 
   followCamera.updateCamera(player, deltaTime);
-  updateFlashlight(deltaTime);
+  updateFlashlight();
 
   surfelUpdateAccumulator += deltaTime;
   if (surfelUpdateAccumulator >= SURFEL_UPDATE_INTERVAL) {

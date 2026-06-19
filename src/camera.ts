@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import { Player } from './player';
 
-export enum CameraView {
-  Quarter = 0,
-  FirstPerson = 1,
-  ThirdPerson = 2
-}
+export const CameraView = {
+  Quarter: 0,
+  FirstPerson: 1,
+  ThirdPerson: 2
+} as const;
+
+export type CameraView = typeof CameraView[keyof typeof CameraView];
 
 export class FollowCamera {
   public camera: THREE.PerspectiveCamera;
