@@ -12,10 +12,6 @@ import {
   updateSurfelGI
 } from './surfel';
 
-const LIGHT_RADIUS_IN_TILES = 3;
-const TILE_SIZE = 2;
-
-
 const LIGHT_RADIUS_PIXELS = 95;
 const LIGHT_SOFTNESS_PIXELS = 70;
 

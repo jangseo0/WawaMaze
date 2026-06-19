@@ -21,7 +21,7 @@ export class FollowCamera {
   }
 
   toggleView() {
-    this.currentView = (this.currentView + 1) % 3;
+    this.currentView = ((this.currentView + 1) % 3) as CameraView;
   }
 
   // [Camera Follow & View Transform]
