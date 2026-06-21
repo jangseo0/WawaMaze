@@ -18,13 +18,13 @@ import {
   updateSurfelDebugObjects
 } from './surfel';
 
-const LIGHT_RADIUS_PIXELS = 95;
-const LIGHT_SOFTNESS_PIXELS = 70;
+const LIGHT_RADIUS_PIXELS = 85;
+const LIGHT_SOFTNESS_PIXELS = 65;
 
 const MAP_REVEAL_DURATION = 3.0;
 const MAP_REVEAL_FADE_TIME = 0.5;
-const NORMAL_AMBIENT_INTENSITY = 0.25; // 약간 밝게 유지해 풀숲 색이 은은하게 보이도록 함
-const REVEAL_AMBIENT_INTENSITY = 1.0;
+const NORMAL_AMBIENT_INTENSITY = 0.16; // 약간 밝게 유지해 풀숲 색이 은은하게 보이도록 함
+const REVEAL_AMBIENT_INTENSITY = 0.75;
 const PLAYER_COLLIDER_RADIUS = 0.5;
 
 const SURFEL_UPDATE_INTERVAL = 0.15;
@@ -98,31 +98,55 @@ document.body.appendChild(renderer.domElement);
 const ambientLight = new THREE.AmbientLight(0x88bbcc, NORMAL_AMBIENT_INTENSITY);
 scene.add(ambientLight);
 
-const PLAYER_LIGHT_INTENSITY = 0.35;
-const PLAYER_LIGHT_DISTANCE = 4.2;
-const PLAYER_LIGHT_DECAY = 2.2;
+const PLAYER_LIGHT_INTENSITY = 0.18;
+const PLAYER_LIGHT_DISTANCE = 3.2;
+const PLAYER_LIGHT_DECAY = 2.4;
 
-// 플레이어 주변 빛(PointLight) 세기와 범위를 줄임
+// 플레이어 주변 빛(PointLight) 세기를 더 줄여 은은한 보조광으로만 사용
 const playerPointLight = new THREE.PointLight(0xffffff, PLAYER_LIGHT_INTENSITY, PLAYER_LIGHT_DISTANCE);
-playerPointLight.decay = PLAYER_LIGHT_DECAY; // 거리에 따른 자연스러운 빛 감소
+playerPointLight.decay = PLAYER_LIGHT_DECAY;
 scene.add(playerPointLight);
 
-// 손전등(Flashlight) 세기와 범위도 줄임
-const flashlight = new THREE.SpotLight(0xffffff, 0.35, 4.5);
-flashlight.angle = Math.PI / 6;     
-flashlight.penumbra = 0.7;          
-flashlight.decay = 2.2;               
-scene.add(flashlight);
-scene.add(flashlight.target);       
+const HEAD_FLASHLIGHT_FORWARD_OFFSET = 0.35;
+
+const HEAD_FLASHLIGHT_INTENSITY = 0.75;
+const HEAD_FLASHLIGHT_DISTANCE = 5.0;
+const HEAD_FLASHLIGHT_ANGLE = Math.PI / 7;
+const HEAD_FLASHLIGHT_PENUMBRA = 0.65;
+const HEAD_FLASHLIGHT_DECAY = 2.2;
+
+const headFlashlight = new THREE.SpotLight(
+  0xfff2c4,
+  HEAD_FLASHLIGHT_INTENSITY,
+  HEAD_FLASHLIGHT_DISTANCE,
+  HEAD_FLASHLIGHT_ANGLE,
+  HEAD_FLASHLIGHT_PENUMBRA,
+  HEAD_FLASHLIGHT_DECAY
+);
+
+const headFlashlightTarget = new THREE.Object3D();
+scene.add(headFlashlight);
+scene.add(headFlashlightTarget);
+headFlashlight.target = headFlashlightTarget;
+
+const headLampMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(0.08, 16, 16),
+  new THREE.MeshStandardMaterial({
+    color: 0xffe7a8,
+    emissive: 0xffcc66,
+    emissiveIntensity: 0.8,
+  })
+);
+scene.add(headLampMesh);
 
 let debugLighting = false;
 const playerLightHelper = new THREE.PointLightHelper(playerPointLight, 0.25, 0xffff00);
 scene.add(playerLightHelper);
 playerLightHelper.visible = debugLighting;
 
-const flashlightHelper = new THREE.SpotLightHelper(flashlight);
-scene.add(flashlightHelper);
-flashlightHelper.visible = debugLighting;
+const headFlashlightHelper = new THREE.SpotLightHelper(headFlashlight);
+scene.add(headFlashlightHelper);
+headFlashlightHelper.visible = debugLighting;
 
 const { playerStartPos, coins, walls, exitZone } = createMazeFromMap(scene);
 const player = new Player(playerStartPos);
@@ -260,7 +284,7 @@ function updateDarknessOverlay() {
   if (!debugFogOfWar) return; 
 
   // Fog of War가 GI를 완전히 가리지 않도록 조정
-  const NORMAL_DARKNESS_ALPHA = 0.82; 
+  const NORMAL_DARKNESS_ALPHA = 0.78; 
   const REVEAL_DARKNESS_ALPHA = 0.0;
   const debugDarknessAlpha = debugSurfels ? NORMAL_DARKNESS_ALPHA * 0.75 : NORMAL_DARKNESS_ALPHA;
   const darknessAlpha = THREE.MathUtils.lerp(debugDarknessAlpha, REVEAL_DARKNESS_ALPHA, mapRevealStrength);
@@ -299,31 +323,44 @@ function updateDarknessOverlay() {
 }
 
 const PLAYER_LIGHT_Y_OFFSET = 1.2;
-const PLAYER_LIGHT_FORWARD_OFFSET = 0.0;
 
 function updatePlayerLightPosition(): void {
-  const forward = new THREE.Vector3(0, 0, 1)
-    .applyQuaternion(player.mesh.quaternion)
-    .normalize();
-
   const lightPosition = player.mesh.position.clone().add(
     new THREE.Vector3(0, PLAYER_LIGHT_Y_OFFSET, 0)
   );
 
   playerPointLight.position.copy(lightPosition);
-  flashlight.position.copy(lightPosition);
+}
 
-  const targetPosition = lightPosition.clone().add(
-    forward.multiplyScalar(PLAYER_LIGHT_FORWARD_OFFSET + 0.5)
+function updateHeadFlashlight(): void {
+  const forward = new THREE.Vector3(0, 0, 1)
+    .applyQuaternion(player.mesh.quaternion)
+    .normalize();
+
+  const lightPosition = new THREE.Vector3();
+  player.headJoint.getWorldPosition(lightPosition);
+
+  lightPosition.add(
+    forward.clone().multiplyScalar(HEAD_FLASHLIGHT_FORWARD_OFFSET)
   );
 
-  if (flashlight.target) {
-    flashlight.target.position.copy(targetPosition);
-  }
+  headFlashlight.position.copy(lightPosition);
+
+  const targetPosition = lightPosition.clone().add(
+    forward.clone().multiplyScalar(4.0)
+  );
+
+  headFlashlightTarget.position.copy(targetPosition);
+}
+
+function updateHeadLampMesh(): void {
+  headLampMesh.position.copy(headFlashlight.position);
 }
 
 function updateFlashlight(): void {
   updatePlayerLightPosition();
+  updateHeadFlashlight();
+  updateHeadLampMesh();
 }
 
 const boundingDebugObjects: THREE.Object3D[] = [];
@@ -410,13 +447,13 @@ function updateDebugUI(): void {
     lightingUI.textContent = `Lighting Debug: ${debugLighting ? "ON" : "OFF"}`;
   }
   if (giToggleUI) {
-    giToggleUI.textContent = `Surfel GI: ${enableSurfelGI ? "ON" : "OFF"}`;
+    giToggleUI.textContent = `Surfel GI: ${enableSurfelGI ? "ON - subtle bounce" : "OFF"}`;
   }
   if (giDebugUI) {
     giDebugUI.textContent = `Surfel Debug: ${debugSurfels ? "ON" : "OFF"}`;
   }
   if (giBoostUI) {
-    giBoostUI.textContent = `GI Boost: ${giBoostStrength.toFixed(2)}`;
+    giBoostUI.textContent = `Head Flashlight: ON`;
   }
   if (surfelCountUI) {
     surfelCountUI.textContent = `Surfels: ${surfels.length}`;
@@ -452,7 +489,7 @@ function animate() {
   if (surfelUpdateAccumulator >= SURFEL_UPDATE_INTERVAL) {
     // 간접광(GI)이 숲의 벽(녹색)에 반사되어 퍼지는 느낌을 살리기 위해, 
     // Surfel에 주입되는 반사광 색상을 은은한 연녹색(0xaaffaa)으로 둡니다.
-    updateSurfelGI(playerPointLight.position, new THREE.Color(0xaaffaa), wallMeshesForRaycast, sceneMeshesForGI, giBoostStrength);
+    updateSurfelGI(playerPointLight.position, new THREE.Color(0xaaffaa), wallMeshesForRaycast, sceneMeshesForGI);
     surfelUpdateAccumulator = 0;
   }
 
@@ -463,9 +500,9 @@ function animate() {
     playerLightHelper.visible = debugLighting;
     playerLightHelper.update?.();
   }
-  if (flashlightHelper) {
-    flashlightHelper.visible = debugLighting;
-    flashlightHelper.update?.();
+  if (headFlashlightHelper) {
+    headFlashlightHelper.visible = debugLighting;
+    headFlashlightHelper.update?.();
   }
   
   updateDarknessOverlay(); 

@@ -27,14 +27,50 @@ export let enableSurfelGI = true;
 
 export const SURFEL_DIRECT_INTENSITY = 2.2;
 export const SURFEL_BOUNCE_INTENSITY = 0.55;
-export const SURFEL_GI_EMISSIVE_INTENSITY = 0.28;
+export const SURFEL_GI_EMISSIVE_INTENSITY = 0.06;
+export const SURFEL_GI_MAX_COLOR = 0.22;
+export const SURFEL_GI_INDIRECT_ONLY_SCALE = 0.45;
+export const SURFEL_GI_SAMPLE_RADIUS = 3.5;
 export const SURFEL_GI_DEBUG_SCALE = 1.8;
+
+const FOREST_GI_TINT = new THREE.Color(0x4f7f5a);
+
+export function tintGIForForest(color: THREE.Color): THREE.Color {
+  return color.clone().lerp(FOREST_GI_TINT, 0.25);
+}
 
 export function clampColor(color: THREE.Color, maxValue = 1.0): THREE.Color {
   color.r = Math.min(color.r, maxValue);
   color.g = Math.min(color.g, maxValue);
   color.b = Math.min(color.b, maxValue);
   return color;
+}
+
+export function softToneMapColor(color: THREE.Color): THREE.Color {
+  color.r = color.r / (1.0 + color.r);
+  color.g = color.g / (1.0 + color.g);
+  color.b = color.b / (1.0 + color.b);
+  return color;
+}
+
+export function getDisplayGIColor(surfel: Surfel): THREE.Color {
+  // Direct Radiance는 실제 scene light가 담당하므로,
+  // material emissive에는 indirectRadiance만 약하게 반영한다.
+  let giColor = surfel.indirectRadiance.clone();
+
+  // 표면 색이 반사광에 영향을 주도록 albedo를 곱한다.
+  giColor.multiply(surfel.albedo);
+
+  // 과한 발광을 막기 위해 scale을 낮춘다.
+  giColor.multiplyScalar(SURFEL_GI_INDIRECT_ONLY_SCALE);
+
+  // 어두운 풀숲 미로 분위기에 맞게 녹색 계열 tint를 섞는다.
+  giColor = tintGIForForest(giColor);
+
+  // 과한 값은 부드럽게 눌러준다.
+  giColor = softToneMapColor(giColor);
+
+  return clampColor(giColor, SURFEL_GI_MAX_COLOR);
 }
 
 export function setDebugSurfels(val: boolean) {
@@ -315,28 +351,30 @@ export function updateTotalRadiance() {
 export function sampleSurfelGIAtPosition(position: THREE.Vector3): THREE.Color {
   const result = new THREE.Color(0, 0, 0);
   let totalWeight = 0;
-  const SAMPLE_RADIUS = 4.0;
 
   for (const surfel of surfels) {
     const distance = position.distanceTo(surfel.position);
-    if (distance > SAMPLE_RADIUS) continue;
+    if (distance > SURFEL_GI_SAMPLE_RADIUS) continue;
 
-    const weight = 1.0 / (0.2 + distance * distance);
-    const contribution = surfel.totalRadiance.clone().multiplyScalar(weight);
+    const weight = 1.0 / (0.35 + distance * distance);
+    const giColor = getDisplayGIColor(surfel);
 
-    result.add(contribution);
+    result.add(giColor.multiplyScalar(weight));
     totalWeight += weight;
   }
 
   if (totalWeight > 0) {
-    result.multiplyScalar(1.0 / totalWeight);
+    result.multiplyScalar(1 / totalWeight);
   }
-  return clampColor(result, 1.0);
+
+  result.copy(softToneMapColor(result));
+  return clampColor(result, SURFEL_GI_MAX_COLOR);
 }
 
 // [Emissive를 이용한 간접광 시각화]
-// GI Color를 Material의 emissive에 복사하여 표면이 은은하게 빛나는 반사광 효과를 냅니다.
-export function applySurfelGIToScene(meshes: THREE.Mesh[], giBoostStrength: number) {
+// Emissive는 실제 GI를 흉내내기 위한 approximation입니다.
+// 너무 강하면 발광처럼 보이므로 매우 낮은 intensity를 사용합니다.
+export function applySurfelGIToScene(meshes: THREE.Mesh[]) {
   for (const mesh of meshes) {
     const material = mesh.material as THREE.MeshStandardMaterial;
 
@@ -349,19 +387,15 @@ export function applySurfelGIToScene(meshes: THREE.Mesh[], giBoostStrength: numb
     const giColor = sampleSurfelGIAtPosition(mesh.position);
     material.emissive.copy(giColor);
     
-    const boostedEmissiveIntensity = THREE.MathUtils.lerp(
-      SURFEL_GI_EMISSIVE_INTENSITY,
-      SURFEL_GI_EMISSIVE_INTENSITY * 2.0,
-      giBoostStrength
-    );
-    material.emissiveIntensity = boostedEmissiveIntensity;
+    // 코인을 먹더라도 발광처럼 보이지 않도록 일정한 기본 intensity 유지
+    material.emissiveIntensity = SURFEL_GI_EMISSIVE_INTENSITY;
   }
 }
 
-export function updateSurfelGI(lightPosition: THREE.Vector3, lightColor: THREE.Color, walls: THREE.Mesh[], giMeshes: THREE.Mesh[], giBoostStrength: number) {
+export function updateSurfelGI(lightPosition: THREE.Vector3, lightColor: THREE.Color, walls: THREE.Mesh[], giMeshes: THREE.Mesh[]) {
   computeDirectRadianceForSurfels(lightPosition, lightColor, walls);
   propagateIndirectRadiance();
   updateTotalRadiance();
-  applySurfelGIToScene(giMeshes, giBoostStrength);
+  applySurfelGIToScene(giMeshes);
   updateSurfelDebugObjects();
 }
