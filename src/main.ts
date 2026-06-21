@@ -23,7 +23,7 @@ const LIGHT_SOFTNESS_PIXELS = 65;
 
 const MAP_REVEAL_DURATION = 3.0;
 const MAP_REVEAL_FADE_TIME = 0.5;
-const NORMAL_AMBIENT_INTENSITY = 0.24; // 약간 밝게 유지해 풀숲 색이 은은하게 보이도록 함
+const NORMAL_AMBIENT_INTENSITY = 0.40; // 약간 밝게 유지해 풀숲 색이 은은하게 보이도록 함
 const REVEAL_AMBIENT_INTENSITY = 0.75;
 const PLAYER_COLLIDER_RADIUS = 0.5;
 
@@ -282,7 +282,7 @@ function updateDarknessOverlay() {
   if (!debugFogOfWar) return; 
 
   // Fog of War가 GI를 완전히 가리지 않도록 조정
-  const NORMAL_DARKNESS_ALPHA = 0.67; 
+  const NORMAL_DARKNESS_ALPHA = 0.35; 
   const REVEAL_DARKNESS_ALPHA = 0.0;
   const debugDarknessAlpha = debugSurfels ? NORMAL_DARKNESS_ALPHA * 0.75 : NORMAL_DARKNESS_ALPHA;
   const darknessAlpha = THREE.MathUtils.lerp(debugDarknessAlpha, REVEAL_DARKNESS_ALPHA, mapRevealStrength);
