@@ -9,7 +9,13 @@ import {
   generateSurfelsFromMaze, 
   buildSurfelNeighbors, 
   createSurfelDebugObjects, 
-  updateSurfelGI
+  updateSurfelGI,
+  surfels,
+  enableSurfelGI,
+  setEnableSurfelGI,
+  debugSurfels,
+  setDebugSurfels,
+  updateSurfelDebugObjects
 } from './surfel';
 
 const LIGHT_RADIUS_PIXELS = 95;
@@ -28,6 +34,11 @@ let score = 0;
 let mapRevealTimer = 0;
 let mapRevealStrength = 0;
 let isGameClear = false;
+
+const GI_BOOST_DURATION = 3.0;
+const GI_BOOST_FADE_TIME = 0.6;
+let giBoostTimer = 0;
+let giBoostStrength = 0;
 
 // Debug States
 let debugBoundingVolumes = false;
@@ -53,6 +64,10 @@ function createHUD(): void {
     "reveal-ui",
     "map-size-ui",
     "path-valid-ui",
+    "gi-toggle-ui",
+    "gi-debug-ui",
+    "gi-boost-ui",
+    "surfel-count-ui",
     "bounding-ui",
     "lighting-ui"
   ];
@@ -144,6 +159,14 @@ window.addEventListener('keydown', (e) => {
   }
   else if (key === 'h') debugHelp = !debugHelp;
   else if (key === 'l') debugLighting = !debugLighting;
+  else if (key === 'i') {
+    setEnableSurfelGI(!enableSurfelGI);
+    console.log("Surfel GI:", enableSurfelGI ? "ON" : "OFF");
+  }
+  else if (key === 'g') {
+    setDebugSurfels(!debugSurfels);
+    updateSurfelDebugObjects();
+  }
 });
 window.addEventListener('keyup', (e) => keys[e.key] = false);
 
@@ -175,6 +198,18 @@ function collectCoin(coin: Coin) {
 
   mapRevealTimer = MAP_REVEAL_DURATION;
   mapRevealStrength = 1.0;
+
+  giBoostTimer = GI_BOOST_DURATION;
+  giBoostStrength = 1.0;
+}
+
+function updateGIBoost(deltaTime: number): void {
+  if (giBoostTimer > 0) {
+    giBoostTimer -= deltaTime;
+    giBoostStrength = 1.0;
+  } else {
+    giBoostStrength = Math.max(0, giBoostStrength - deltaTime / GI_BOOST_FADE_TIME);
+  }
 }
 
 function updateCoins(deltaTime: number) {
@@ -221,10 +256,11 @@ function updateDarknessOverlay() {
   
   if (!debugFogOfWar) return; 
 
-  // 완전히 새까만 검정이 아니라 어두운 청록/남녹 계열(Dark Teal/Night Blue)을 덮습니다.
-  const NORMAL_DARKNESS_ALPHA = 0.88; 
+  // Fog of War가 GI를 완전히 가리지 않도록 조정
+  const NORMAL_DARKNESS_ALPHA = 0.82; 
   const REVEAL_DARKNESS_ALPHA = 0.0;
-  const darknessAlpha = THREE.MathUtils.lerp(NORMAL_DARKNESS_ALPHA, REVEAL_DARKNESS_ALPHA, mapRevealStrength);
+  const debugDarknessAlpha = debugSurfels ? NORMAL_DARKNESS_ALPHA * 0.75 : NORMAL_DARKNESS_ALPHA;
+  const darknessAlpha = THREE.MathUtils.lerp(debugDarknessAlpha, REVEAL_DARKNESS_ALPHA, mapRevealStrength);
   
   overlayCtx.globalCompositeOperation = 'source-over';
   overlayCtx.fillStyle = `rgba(5, 15, 12, ${darknessAlpha})`;
@@ -359,12 +395,28 @@ function updateGameUI(): void {
 function updateDebugUI(): void {
   const boundingUI = document.getElementById("bounding-ui");
   const lightingUI = document.getElementById("lighting-ui");
+  const giToggleUI = document.getElementById("gi-toggle-ui");
+  const giDebugUI = document.getElementById("gi-debug-ui");
+  const giBoostUI = document.getElementById("gi-boost-ui");
+  const surfelCountUI = document.getElementById("surfel-count-ui");
 
   if (boundingUI) {
     boundingUI.textContent = `Bounding Debug: ${debugBoundingVolumes ? "ON" : "OFF"}`;
   }
   if (lightingUI) {
     lightingUI.textContent = `Lighting Debug: ${debugLighting ? "ON" : "OFF"}`;
+  }
+  if (giToggleUI) {
+    giToggleUI.textContent = `Surfel GI: ${enableSurfelGI ? "ON" : "OFF"}`;
+  }
+  if (giDebugUI) {
+    giDebugUI.textContent = `Surfel Debug: ${debugSurfels ? "ON" : "OFF"}`;
+  }
+  if (giBoostUI) {
+    giBoostUI.textContent = `GI Boost: ${giBoostStrength.toFixed(2)}`;
+  }
+  if (surfelCountUI) {
+    surfelCountUI.textContent = `Surfels: ${surfels.length}`;
   }
 
   helpElement.style.display = debugHelp ? 'block' : 'none';
@@ -382,6 +434,7 @@ function animate() {
     updateCoinCollision();
     updateExitCollision();
     updateMapReveal(deltaTime);
+    updateGIBoost(deltaTime);
   } else {
     updatePlayerAnimation(player, deltaTime, true); 
     // 클리어 시 화면이 서서히 완전히 밝아지도록 처리
@@ -396,7 +449,7 @@ function animate() {
   if (surfelUpdateAccumulator >= SURFEL_UPDATE_INTERVAL) {
     // 간접광(GI)이 숲의 벽(녹색)에 반사되어 퍼지는 느낌을 살리기 위해, 
     // Surfel에 주입되는 반사광 색상을 은은한 연녹색(0xaaffaa)으로 둡니다.
-    updateSurfelGI(playerPointLight.position, new THREE.Color(0xaaffaa), wallMeshesForRaycast, sceneMeshesForGI);
+    updateSurfelGI(playerPointLight.position, new THREE.Color(0xaaffaa), wallMeshesForRaycast, sceneMeshesForGI, giBoostStrength);
     surfelUpdateAccumulator = 0;
   }
 

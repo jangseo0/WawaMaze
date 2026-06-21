@@ -2,8 +2,10 @@ import * as THREE from 'three';
 import { mazeMap, mapToWorld, isWalkableMapChar, TILE_SIZE, WALL_HEIGHT } from './maze';
 
 // [Surfel] & [Surface Element]
-// Surfel은 3D 표면을 작은 원반 형태로 근사한 요소입니다.
+// Surfel은 3D 표면을 작은 원반 형태로 근사한 그래픽스 요소입니다.
 // 각 요소가 빛을 얼마나 받고(Radiance), 어떤 색상(Albedo)이며 어느 방향(Surface Normal)을 향하는지 저장합니다.
+// [Direct Radiance] (직접광)와 [Indirect Radiance] (간접광)을 합산하여 최종 밝기를 계산합니다.
+// [Normal 방향성]을 사용해 빛이 표면에 닿는 각도를 계산하여 람베르트 반사(Lambertian)를 시뮬레이션합니다.
 export type Surfel = {
   position: THREE.Vector3;
   normal: THREE.Vector3;
@@ -21,16 +23,26 @@ export type Surfel = {
 
 export const surfels: Surfel[] = [];
 export let debugSurfels = false;
+export let enableSurfelGI = true;
 
-window.addEventListener('keydown', (event) => {
-  if (event.key.toLowerCase() === 'g') {
-    debugSurfels = !debugSurfels;
-    updateSurfelDebugObjects();
-  }
-});
+export const SURFEL_DIRECT_INTENSITY = 2.2;
+export const SURFEL_BOUNCE_INTENSITY = 0.55;
+export const SURFEL_GI_EMISSIVE_INTENSITY = 0.28;
+export const SURFEL_GI_DEBUG_SCALE = 1.8;
+
+export function clampColor(color: THREE.Color, maxValue = 1.0): THREE.Color {
+  color.r = Math.min(color.r, maxValue);
+  color.g = Math.min(color.g, maxValue);
+  color.b = Math.min(color.b, maxValue);
+  return color;
+}
 
 export function setDebugSurfels(val: boolean) {
   debugSurfels = val;
+}
+
+export function setEnableSurfelGI(val: boolean) {
+  enableSurfelGI = val;
 }
 
 export function isWalkableTile(row: number, col: number): boolean {
@@ -161,11 +173,16 @@ export function createSurfelDebugObjects(scene: THREE.Scene) {
     scene.add(mesh);
     surfel.debugMesh = mesh;
 
-    const points = [];
-    points.push(new THREE.Vector3(0, 0, 0));
-    points.push(surfel.normal.clone().multiplyScalar(0.8));
+    const points = [
+      new THREE.Vector3(0, 0, 0),
+      surfel.normal.clone().multiplyScalar(0.35)
+    ];
     const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-    const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff });
+    const lineMat = new THREE.LineBasicMaterial({ 
+      color: 0x88ff88,
+      transparent: true,
+      opacity: 0.8
+    });
     const line = new THREE.Line(lineGeo, lineMat);
     line.position.copy(surfel.position);
     line.visible = false;
@@ -174,14 +191,30 @@ export function createSurfelDebugObjects(scene: THREE.Scene) {
   }
 }
 
+function getSurfelDebugColor(surfel: Surfel): THREE.Color {
+  const directPower = surfel.directRadiance.r + surfel.directRadiance.g + surfel.directRadiance.b;
+  const indirectPower = surfel.indirectRadiance.r + surfel.indirectRadiance.g + surfel.indirectRadiance.b;
+
+  if (directPower > 0.3) {
+    return new THREE.Color(0xfff176); // direct light: yellow
+  }
+  if (indirectPower > 0.08) {
+    return new THREE.Color(0x80ff9f); // indirect bounce: green
+  }
+  return new THREE.Color(0x1b3a2a); // dark foliage tone
+}
+
 export function updateSurfelDebugObjects() {
   for (const surfel of surfels) {
     if (surfel.debugMesh) {
       surfel.debugMesh.visible = debugSurfels;
       if (debugSurfels) {
-        // [Radiance 시각화]
-        // 빛을 많이 받으면 밝게, 적게 받으면 어둡게 표현됩니다.
-        (surfel.debugMesh.material as THREE.MeshBasicMaterial).color.copy(surfel.totalRadiance);
+        // [Debug Visualization] GI ON/OFF 비교 및 시각화용
+        (surfel.debugMesh.material as THREE.MeshBasicMaterial).color.copy(getSurfelDebugColor(surfel));
+        
+        const power = Math.min(1.0, surfel.totalRadiance.r + surfel.totalRadiance.g + surfel.totalRadiance.b);
+        const scale = THREE.MathUtils.lerp(0.04, 0.16, power * SURFEL_GI_DEBUG_SCALE);
+        surfel.debugMesh.scale.setScalar(scale);
       }
     }
     if (surfel.debugNormal) {
@@ -207,7 +240,6 @@ export function isOccludedByWall(from: THREE.Vector3, to: THREE.Vector3, walls: 
 }
 
 const SURFEL_DIRECT_LIGHT_RADIUS = 8.0;
-const SURFEL_DIRECT_INTENSITY = 1.5;
 
 // [Direct Radiance] & [Lambert Diffuse] & [N dot L] & [Distance Attenuation]
 export function computeDirectRadianceForSurfels(lightPosition: THREE.Vector3, lightColor: THREE.Color, walls: THREE.Mesh[]) {
@@ -236,10 +268,7 @@ export function computeDirectRadianceForSurfels(lightPosition: THREE.Vector3, li
   }
 }
 
-const SURFEL_BOUNCE_INTENSITY = 0.35;
-const SURFEL_INDIRECT_DECAY = 0.85;
-
-// [Indirect Lighting] & [Light Bounce] & [Diffuse Interreflection] & [Albedo 반사] & [Energy Decay]
+// [Indirect Lighting] & [Light Bounce] & [Diffuse Interreflection] & [Albedo 기반 반사]
 // 직접광을 받은 Surfel이 다시 광원이 되어 주변 Neighbor Surfel들에게 간접광을 전달합니다.
 export function propagateIndirectRadiance() {
   for (const surfel of surfels) {
@@ -251,8 +280,7 @@ export function propagateIndirectRadiance() {
     if (from.directRadiance.r === 0 && from.directRadiance.g === 0 && from.directRadiance.b === 0) continue;
 
     // Albedo(표면 색상)를 곱해 튕겨나가는 빛의 색이 표면 색의 영향을 받도록 합니다.
-    const bounced = from.directRadiance.clone().multiply(from.albedo);
-    bounced.multiplyScalar(SURFEL_BOUNCE_INTENSITY * SURFEL_INDIRECT_DECAY);
+    const bounced = from.directRadiance.clone().multiply(from.albedo).multiplyScalar(SURFEL_BOUNCE_INTENSITY);
 
     for (const neighborIndex of from.neighbors) {
       const to = surfels[neighborIndex];
@@ -283,47 +311,57 @@ export function updateTotalRadiance() {
 }
 
 // [Global Illumination] 샘플링
+// Distance Falloff (거리 감쇠)를 고려하여 주변 Surfel 여러 개를 가중 평균(Weighted Average)으로 섞습니다.
 export function sampleSurfelGIAtPosition(position: THREE.Vector3): THREE.Color {
   const result = new THREE.Color(0, 0, 0);
   let totalWeight = 0;
+  const SAMPLE_RADIUS = 4.0;
 
   for (const surfel of surfels) {
-    const dist = position.distanceTo(surfel.position);
-    if (dist < 4.0) {
-      const weight = 1.0 / (1.0 + dist * dist);
-      result.add(surfel.totalRadiance.clone().multiplyScalar(weight));
-      totalWeight += weight;
-    }
+    const distance = position.distanceTo(surfel.position);
+    if (distance > SAMPLE_RADIUS) continue;
+
+    const weight = 1.0 / (0.2 + distance * distance);
+    const contribution = surfel.totalRadiance.clone().multiplyScalar(weight);
+
+    result.add(contribution);
+    totalWeight += weight;
   }
 
   if (totalWeight > 0) {
     result.multiplyScalar(1.0 / totalWeight);
   }
-  return result;
+  return clampColor(result, 1.0);
 }
 
-const SURFEL_GI_EMISSIVE_INTENSITY = 0.12;
-
-export function applySurfelGIToScene(meshes: THREE.Mesh[]) {
+// [Emissive를 이용한 간접광 시각화]
+// GI Color를 Material의 emissive에 복사하여 표면이 은은하게 빛나는 반사광 효과를 냅니다.
+export function applySurfelGIToScene(meshes: THREE.Mesh[], giBoostStrength: number) {
   for (const mesh of meshes) {
-    const giColor = sampleSurfelGIAtPosition(mesh.position);
-    // GI 색상이 너무 강할 경우를 대비해 스케일을 살짝 낮춤
-    giColor.multiplyScalar(0.45);
-    
-    // mesh별로 독립적인 Material을 복제(clone)해서 지니고 있으므로 각기 다른 빛을 머금을 수 있습니다.
-    const mat = mesh.material as THREE.MeshStandardMaterial;
-    if (mat && mat.emissive) {
-      mat.emissive.copy(giColor);
-      // 간접광에 의한 밝기를 줄여 풀숲이 스스로 너무 강하게 발광하는 것을 방지
-      mat.emissiveIntensity = SURFEL_GI_EMISSIVE_INTENSITY; 
+    const material = mesh.material as THREE.MeshStandardMaterial;
+
+    if (!enableSurfelGI) {
+      material.emissive.setRGB(0, 0, 0);
+      material.emissiveIntensity = 0;
+      continue;
     }
+
+    const giColor = sampleSurfelGIAtPosition(mesh.position);
+    material.emissive.copy(giColor);
+    
+    const boostedEmissiveIntensity = THREE.MathUtils.lerp(
+      SURFEL_GI_EMISSIVE_INTENSITY,
+      SURFEL_GI_EMISSIVE_INTENSITY * 2.0,
+      giBoostStrength
+    );
+    material.emissiveIntensity = boostedEmissiveIntensity;
   }
 }
 
-export function updateSurfelGI(lightPosition: THREE.Vector3, lightColor: THREE.Color, walls: THREE.Mesh[], giMeshes: THREE.Mesh[]) {
+export function updateSurfelGI(lightPosition: THREE.Vector3, lightColor: THREE.Color, walls: THREE.Mesh[], giMeshes: THREE.Mesh[], giBoostStrength: number) {
   computeDirectRadianceForSurfels(lightPosition, lightColor, walls);
   propagateIndirectRadiance();
   updateTotalRadiance();
-  applySurfelGIToScene(giMeshes);
+  applySurfelGIToScene(giMeshes, giBoostStrength);
   updateSurfelDebugObjects();
 }
