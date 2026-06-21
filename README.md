@@ -68,7 +68,7 @@ function isSphereInFrustumNDC(
 
 ## 3. 강의 내용과 구현 내용 매핑
 
-### 1. Transformation
+### 3.1 Transformation
 - 치와와의 이동 방향(Vector)을 계산하고, 짐벌락 방지와 부드러운 구면 선형 보간 회전을 위해 쿼터니언의 `slerp`를 사용해 회전을 처리했습니다.
 ```
 updatePlayerRotation(moveDirection: THREE.Vector3, deltaTime: number) {
@@ -84,13 +84,13 @@ updatePlayerRotation(moveDirection: THREE.Vector3, deltaTime: number) {
   this.mesh.quaternion.slerp(targetQuaternion, 10 * deltaTime);
 }
 ```
-### 2. Viewing & Projection:
+### 3.2 Viewing & Projection:
 - `THREE.PerspectiveCamera`를 사용해 원근감이 있는 3차원 투영을 구현했으며, Frustum Culling 연산 시 수식적으로 View 변환과 Projection 변환의 원리를 응용했습니다.
 
-### 3. Lighting & Shading:
+### 3.3 Lighting & Shading:
 - `AmbientLight`로 기본 환경광을 깔고, 치와와의 머리 위치(headJoint)에 `PointLight`(헤드램프)를 부착하여 물리 기반 렌더링 재질(`MeshStandardMaterial`)과 상호작용하도록 구성했습니다.
 
-### 4. Texture Mapping:
+### 3.4 Texture Mapping:
 - 벽과 바닥 텍스처에 기본 색상(Albedo)뿐만 아니라 Normal Map을 적용하여, 폴리곤 수를 늘리지 않고도 빛의 각도에 따라 입체감과 거친 질감이 느껴지도록 구현했습니다.
 
 <img width="1219" height="695" alt="스크린샷 2026-06-21 18 41 02" src="https://github.com/user-attachments/assets/d296c322-c726-49ca-9c3f-336ca3bf8dff" />
