@@ -215,5 +215,117 @@ export function createMazeFromMap(scene: THREE.Scene): { playerStartPos: THREE.V
     }
   }
 
+  createOuterGround(scene);
+
   return { playerStartPos, coins, walls, exitZone };
+}
+
+function createProceduralStoneAlbedoTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#2f3230';
+  ctx.fillRect(0, 0, 512, 512);
+
+  for (let i = 0; i < 4000; i++) {
+    const x = Math.random() * 512;
+    const y = Math.random() * 512;
+    const size = Math.random() * 12 + 2;
+    
+    const type = Math.random();
+    if (type < 0.4) {
+      ctx.fillStyle = '#1d201f';
+    } else if (type < 0.8) {
+      ctx.fillStyle = '#454946';
+    } else {
+      ctx.fillStyle = '#2f3f32'; // 이끼 색상
+    }
+    
+    ctx.globalAlpha = Math.random() * 0.4 + 0.1;
+    ctx.fillRect(x, y, size, size);
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(10, 10);
+  return texture;
+}
+
+function createProceduralStoneNormalTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = 'rgb(128, 128, 255)';
+  ctx.fillRect(0, 0, 512, 512);
+
+  for (let i = 0; i < 6000; i++) {
+    const x = Math.random() * 512;
+    const y = Math.random() * 512;
+    const size = Math.random() * 6 + 1;
+    
+    const r = Math.floor(Math.random() * 60 + 98);
+    const g = Math.floor(Math.random() * 60 + 98);
+    
+    ctx.fillStyle = `rgb(${r}, ${g}, 255)`;
+    ctx.globalAlpha = Math.random() * 0.5 + 0.2;
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(10, 10);
+  return texture;
+}
+
+function createOuterStoneMaterial(): THREE.MeshStandardMaterial {
+  const albedoMap = createProceduralStoneAlbedoTexture();
+  const normalMap = createProceduralStoneNormalTexture();
+  
+  return new THREE.MeshStandardMaterial({
+    map: albedoMap,
+    normalMap: normalMap,
+    roughness: 0.9,
+    metalness: 0.0,
+  });
+}
+
+function createOuterGround(scene: THREE.Scene): void {
+  const OUTER_GROUND_PADDING_TILES = 6;
+  const OUTER_GROUND_Y = -0.03;
+
+  const mazeWidth = mazeMap[0].length * TILE_SIZE;
+  const mazeDepth = mazeMap.length * TILE_SIZE;
+
+  const outerGroundWidth = mazeWidth + OUTER_GROUND_PADDING_TILES * TILE_SIZE * 2;
+  const outerGroundDepth = mazeDepth + OUTER_GROUND_PADDING_TILES * TILE_SIZE * 2;
+
+  const outerGroundGeometry = new THREE.PlaneGeometry(outerGroundWidth, outerGroundDepth);
+  outerGroundGeometry.rotateX(-Math.PI / 2);
+
+  const outerStoneMaterial = createOuterStoneMaterial();
+
+  // [미로 내부와 외부 공간 구분]
+  // 미로 내부는 기존 floor tile(풀길)을 쓰고, 바깥쪽은 이 outerGround(어두운 돌바닥)가 채웁니다.
+  // outerGround는 World Space에 넓게 깔리는 커다란 background plane입니다.
+  // 
+  // [텍스처 생성 원리]
+  // Albedo Map은 표면의 기본 색과 이끼를 표현하고, Normal Map은 추가 폴리곤 없이 빛의 반사 방향만 
+  // 왜곡시켜 돌바닥의 거친 요철이나 틈새를 표현(Bump)합니다.
+  // 
+  // [Culling 최적화 제외]
+  // 배경이므로 시야에 걸칠 때마다 생성/삭제 비용을 아끼기 위해 frustumCulled = false 처리하며,
+  // Surfel GI나 충돌 판정 객체 리스트에도 포함시키지 않습니다.
+  const outerGround = new THREE.Mesh(outerGroundGeometry, outerStoneMaterial);
+  outerGround.position.set(0, OUTER_GROUND_Y, 0);
+  outerGround.receiveShadow = true;
+  outerGround.frustumCulled = false;
+  scene.add(outerGround);
 }
