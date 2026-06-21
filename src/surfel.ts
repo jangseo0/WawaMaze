@@ -25,35 +25,35 @@ export const surfels: Surfel[] = [];
 export let debugSurfels = false;
 export let enableSurfelGI = true;
 
-export const SURFEL_DIRECT_INTENSITY = 2.2;
-export const SURFEL_BOUNCE_INTENSITY = 0.55;
-export const SURFEL_GI_EMISSIVE_INTENSITY = 0.06;
-export const SURFEL_GI_MAX_COLOR = 0.22;
-export const SURFEL_GI_INDIRECT_ONLY_SCALE = 0.45;
-export const SURFEL_GI_SAMPLE_RADIUS = 3.5;
-export const SURFEL_GI_DEBUG_SCALE = 1.8;
+const SURFEL_DIRECT_INTENSITY = 2.2;
+const SURFEL_BOUNCE_INTENSITY = 0.55;
+const SURFEL_GI_EMISSIVE_INTENSITY = 0.06;
+const SURFEL_GI_MAX_COLOR = 0.22;
+const SURFEL_GI_INDIRECT_ONLY_SCALE = 0.45;
+const SURFEL_GI_SAMPLE_RADIUS = 3.5;
+const SURFEL_GI_DEBUG_SCALE = 1.8;
 
 const FOREST_GI_TINT = new THREE.Color(0x4f7f5a);
 
-export function tintGIForForest(color: THREE.Color): THREE.Color {
+function tintGIForForest(color: THREE.Color): THREE.Color {
   return color.clone().lerp(FOREST_GI_TINT, 0.25);
 }
 
-export function clampColor(color: THREE.Color, maxValue = 1.0): THREE.Color {
+function clampColor(color: THREE.Color, maxValue = 1.0): THREE.Color {
   color.r = Math.min(color.r, maxValue);
   color.g = Math.min(color.g, maxValue);
   color.b = Math.min(color.b, maxValue);
   return color;
 }
 
-export function softToneMapColor(color: THREE.Color): THREE.Color {
+function softToneMapColor(color: THREE.Color): THREE.Color {
   color.r = color.r / (1.0 + color.r);
   color.g = color.g / (1.0 + color.g);
   color.b = color.b / (1.0 + color.b);
   return color;
 }
 
-export function getDisplayGIColor(surfel: Surfel): THREE.Color {
+function getDisplayGIColor(surfel: Surfel): THREE.Color {
   // Direct Radiance는 실제 scene light가 담당하므로,
   // material emissive에는 indirectRadiance만 약하게 반영한다.
   let giColor = surfel.indirectRadiance.clone();
@@ -81,12 +81,12 @@ export function setEnableSurfelGI(val: boolean) {
   enableSurfelGI = val;
 }
 
-export function isWalkableTile(row: number, col: number): boolean {
+function isWalkableTile(row: number, col: number): boolean {
   if (row < 0 || row >= mazeMap.length || col < 0 || col >= mazeMap[0].length) return false;
   return isWalkableMapChar(mazeMap[row][col]);
 }
 
-export function createFloorSurfel(x: number, z: number): Surfel {
+function createFloorSurfel(x: number, z: number): Surfel {
   return {
     position: new THREE.Vector3(x, 0.1, z),
     normal: new THREE.Vector3(0, 1, 0),
@@ -99,7 +99,7 @@ export function createFloorSurfel(x: number, z: number): Surfel {
   };
 }
 
-export function createWallSurfels(x: number, z: number, row: number, col: number): Surfel[] {
+function createWallSurfels(x: number, z: number, row: number, col: number): Surfel[] {
   const result: Surfel[] = [];
   const y = WALL_HEIGHT / 2;
   const half = TILE_SIZE / 2;
@@ -261,7 +261,7 @@ export function updateSurfelDebugObjects() {
 
 // [Ray Casting] & [Visibility Test] & [Shadow Ray] & [Occlusion]
 // 직접광(Direct Lighting)이 벽에 가려 차폐(Occlusion)되는지 확인하는 섀도우 레이 연산입니다.
-export function isOccludedByWall(from: THREE.Vector3, to: THREE.Vector3, walls: THREE.Mesh[]): boolean {
+function isOccludedByWall(from: THREE.Vector3, to: THREE.Vector3, walls: THREE.Mesh[]): boolean {
   const EPSILON = 0.05;
   const direction = to.clone().sub(from);
   const distance = direction.length();
@@ -278,7 +278,7 @@ export function isOccludedByWall(from: THREE.Vector3, to: THREE.Vector3, walls: 
 const SURFEL_DIRECT_LIGHT_RADIUS = 8.0;
 
 // [Direct Radiance] & [Lambert Diffuse] & [N dot L] & [Distance Attenuation]
-export function computeDirectRadianceForSurfels(lightPosition: THREE.Vector3, lightColor: THREE.Color, walls: THREE.Mesh[]) {
+function computeDirectRadianceForSurfels(lightPosition: THREE.Vector3, lightColor: THREE.Color, walls: THREE.Mesh[]) {
   for (const surfel of surfels) {
     const toLight = lightPosition.clone().sub(surfel.position);
     const distance = toLight.length();
@@ -306,7 +306,7 @@ export function computeDirectRadianceForSurfels(lightPosition: THREE.Vector3, li
 
 // [Indirect Lighting] & [Light Bounce] & [Diffuse Interreflection] & [Albedo 기반 반사]
 // 직접광을 받은 Surfel이 다시 광원이 되어 주변 Neighbor Surfel들에게 간접광을 전달합니다.
-export function propagateIndirectRadiance() {
+function propagateIndirectRadiance() {
   for (const surfel of surfels) {
     surfel.indirectRadiance.setRGB(0, 0, 0);
   }
@@ -335,7 +335,7 @@ export function propagateIndirectRadiance() {
   }
 }
 
-export function updateTotalRadiance() {
+function updateTotalRadiance() {
   for (const surfel of surfels) {
     surfel.totalRadiance.copy(surfel.directRadiance);
     surfel.totalRadiance.add(surfel.indirectRadiance);
@@ -348,7 +348,7 @@ export function updateTotalRadiance() {
 
 // [Global Illumination] 샘플링
 // Distance Falloff (거리 감쇠)를 고려하여 주변 Surfel 여러 개를 가중 평균(Weighted Average)으로 섞습니다.
-export function sampleSurfelGIAtPosition(position: THREE.Vector3): THREE.Color {
+function sampleSurfelGIAtPosition(position: THREE.Vector3): THREE.Color {
   const result = new THREE.Color(0, 0, 0);
   let totalWeight = 0;
 
@@ -374,7 +374,7 @@ export function sampleSurfelGIAtPosition(position: THREE.Vector3): THREE.Color {
 // [Emissive를 이용한 간접광 시각화]
 // Emissive는 실제 GI를 흉내내기 위한 approximation입니다.
 // 너무 강하면 발광처럼 보이므로 매우 낮은 intensity를 사용합니다.
-export function applySurfelGIToScene(meshes: THREE.Mesh[]) {
+function applySurfelGIToScene(meshes: THREE.Mesh[]) {
   for (const mesh of meshes) {
     const material = mesh.material as THREE.MeshStandardMaterial;
 

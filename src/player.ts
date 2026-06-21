@@ -7,7 +7,7 @@ const PLAYER_COLLIDER_RADIUS = 0.5;
 let walkTime = 0;
 
 // [Broad Phase Collision] & [Closest Point on AABB] & [Conservative Collision Testing]
-export function sphereIntersectsAABB(
+function sphereIntersectsAABB(
   sphereCenter: THREE.Vector3,
   sphereRadius: number,
   boxMin: THREE.Vector3,

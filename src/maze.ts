@@ -70,7 +70,7 @@ export function isWalkableMapChar(char: string): boolean {
   return char === '0' || char === '2' || char === 'P' || char === 'E';
 }
 
-export function findTilePosition(mazeMap: string[], target: string): { row: number; col: number } | null {
+function findTilePosition(mazeMap: string[], target: string): { row: number; col: number } | null {
   for (let r = 0; r < mazeMap.length; r++) {
     for (let c = 0; c < mazeMap[r].length; c++) {
       if (mazeMap[r][c] === target) return { row: r, col: c };

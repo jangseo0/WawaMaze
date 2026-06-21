@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-export type CullingObject = {
+type CullingObject = {
   mesh: THREE.Object3D;
   center: THREE.Vector3;
   radius: number;
@@ -8,8 +8,8 @@ export type CullingObject = {
   debugSphere?: THREE.Mesh;
 };
 
-export const cullingObjects: CullingObject[] = [];
-export let debugCulling = false;
+const cullingObjects: CullingObject[] = [];
+let debugCulling = false;
 
 window.addEventListener('keydown', (event) => {
   if (event.key.toLowerCase() === 'c') {
@@ -17,11 +17,7 @@ window.addEventListener('keydown', (event) => {
   }
 });
 
-export function setDebugCulling(val: boolean) {
-  debugCulling = val;
-}
-
-export function createCullingDebugSphere(radius: number): THREE.Mesh {
+function createCullingDebugSphere(radius: number): THREE.Mesh {
   const geo = new THREE.SphereGeometry(radius, 8, 8);
   const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
   return new THREE.Mesh(geo, mat);
@@ -48,7 +44,7 @@ export function registerCullingObject(
 }
 
 // [View-Projection Matrix] & [Clip Space] & [NDC] & [Perspective Divide]
-export function isSphereInFrustumNDC(
+function isSphereInFrustumNDC(
   centerWorld: THREE.Vector3,
   radiusWorld: number,
   camera: THREE.Camera

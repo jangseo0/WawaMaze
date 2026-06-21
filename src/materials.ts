@@ -3,7 +3,7 @@ import * as THREE from 'three';
 // [Albedo Map] & [Diffuse Texture]
 // 표면의 기본적인 색상(반사율)을 정의합니다. 조명 계산 시 난반사(Diffuse)의 기준 색상이 됩니다.
 // 외부 이미지(JPG/PNG)를 로드하는 대신 Canvas API를 활용해 절차적(Procedural)으로 텍스처를 생성합니다.
-export function createProceduralAlbedoTexture(type: "wall" | "floor"): THREE.CanvasTexture {
+function createProceduralAlbedoTexture(type: "wall" | "floor"): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 256;
   canvas.height = 256;
@@ -75,7 +75,7 @@ export function createProceduralAlbedoTexture(type: "wall" | "floor"): THREE.Can
 // [Normal Map] & [Tangent Space Normal]
 // 표면 디테일을 폴리곤 증가 없이 표현하는 방식입니다. 텍스처 픽셀(Texel)마다 방향(Normal) 벡터를 지정해 
 // 빛이 반사되는 각도를 조작, 표면이 울퉁불퉁한 것처럼 착각하게 만듭니다.
-export function createProceduralNormalTexture(type: "wall" | "floor"): THREE.CanvasTexture {
+function createProceduralNormalTexture(type: "wall" | "floor"): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 256;
   canvas.height = 256;
