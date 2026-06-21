@@ -98,16 +98,14 @@ document.body.appendChild(renderer.domElement);
 const ambientLight = new THREE.AmbientLight(0x88bbcc, NORMAL_AMBIENT_INTENSITY);
 scene.add(ambientLight);
 
-const PLAYER_LIGHT_INTENSITY = 0.18;
-const PLAYER_LIGHT_DISTANCE = 3.2;
-const PLAYER_LIGHT_DECAY = 2.4;
+const PLAYER_LIGHT_INTENSITY = 0.45;
+const PLAYER_LIGHT_DISTANCE = 2.5;
+const PLAYER_LIGHT_DECAY = 2.0;
 
-// 플레이어 주변 빛(PointLight) 세기를 더 줄여 은은한 보조광으로만 사용
+// 플레이어 주변 빛(PointLight): 치와와 자신과 바로 밑 바닥을 밝혀주는 용도
 const playerPointLight = new THREE.PointLight(0xffffff, PLAYER_LIGHT_INTENSITY, PLAYER_LIGHT_DISTANCE);
 playerPointLight.decay = PLAYER_LIGHT_DECAY;
 scene.add(playerPointLight);
-
-const HEAD_FLASHLIGHT_FORWARD_OFFSET = 0.35;
 
 const HEAD_FLASHLIGHT_INTENSITY = 0.75;
 const HEAD_FLASHLIGHT_DISTANCE = 5.0;
@@ -322,7 +320,7 @@ function updateDarknessOverlay() {
   }
 }
 
-const PLAYER_LIGHT_Y_OFFSET = 1.2;
+const PLAYER_LIGHT_Y_OFFSET = 0.5;
 
 function updatePlayerLightPosition(): void {
   const lightPosition = player.mesh.position.clone().add(
@@ -333,24 +331,18 @@ function updatePlayerLightPosition(): void {
 }
 
 function updateHeadFlashlight(): void {
-  const forward = new THREE.Vector3(0, 0, 1)
-    .applyQuaternion(player.mesh.quaternion)
-    .normalize();
+  // 머리의 로컬 좌표계 (0, 0, 0)은 목/머리 관절의 중심입니다.
+  // 로컬 좌표로 위쪽(Y: 0.28), 앞쪽(Z: 0.12)으로 이동시켜 이마/머리띠 위치에 맞춥니다.
+  const localLampOffset = new THREE.Vector3(0, 0.28, 0.12);
+  const headMatrix = player.headJoint.matrixWorld;
+  
+  const lampWorldPos = localLampOffset.clone().applyMatrix4(headMatrix);
+  headFlashlight.position.copy(lampWorldPos);
 
-  const lightPosition = new THREE.Vector3();
-  player.headJoint.getWorldPosition(lightPosition);
-
-  lightPosition.add(
-    forward.clone().multiplyScalar(HEAD_FLASHLIGHT_FORWARD_OFFSET)
-  );
-
-  headFlashlight.position.copy(lightPosition);
-
-  const targetPosition = lightPosition.clone().add(
-    forward.clone().multiplyScalar(4.0)
-  );
-
-  headFlashlightTarget.position.copy(targetPosition);
+  // 빛이 향할 타겟 지점: 머리가 바라보는 방향(로컬 Z축)으로 4.0 거리 앞, 살짝 아래쪽
+  const localTargetOffset = new THREE.Vector3(0, -0.3, 4.0);
+  const targetWorldPos = localTargetOffset.clone().applyMatrix4(headMatrix);
+  headFlashlightTarget.position.copy(targetWorldPos);
 }
 
 function updateHeadLampMesh(): void {
