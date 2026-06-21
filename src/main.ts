@@ -33,6 +33,7 @@ let surfelUpdateAccumulator = 0;
 let score = 0;
 let mapRevealTimer = 0;
 let mapRevealStrength = 0;
+let isGameStarted = false;
 let isGameClear = false;
 
 const GI_BOOST_DURATION = 3.0;
@@ -50,6 +51,15 @@ const helpElement = document.getElementById('help-ui')!;
 const clearElement = document.getElementById('clear-ui')!;
 const finalScoreElement = document.getElementById('final-score')!;
 const restartBtn = document.getElementById('restart-btn')!;
+const startUI = document.getElementById('start-ui');
+const startBtn = document.getElementById('start-btn');
+
+startBtn?.addEventListener('click', () => {
+  if (startUI) {
+    startUI.style.display = 'none';
+  }
+  isGameStarted = true;
+});
 
 function createHUD(): void {
   if (document.getElementById("hud-left")) return;
@@ -170,6 +180,7 @@ resizeOverlay();
 
 const keys: { [key: string]: boolean } = {};
 window.addEventListener('keydown', (e) => {
+  if (!isGameStarted) return;
   keys[e.key] = true;
   
   if (isGameClear) return;
@@ -459,22 +470,27 @@ const clock = new THREE.Clock();
 function animate() {
   const deltaTime = clock.getDelta();
 
-  if (!isGameClear) {
-    player.updatePlayer(deltaTime, keys, walls);
-    updatePlayerAnimation(player, deltaTime, false); 
-    updateCoins(deltaTime);
-    updateCoinCollision();
-    updateExitCollision();
-    updateMapReveal(deltaTime);
-    updateGIBoost(deltaTime);
+  if (isGameStarted) {
+    if (!isGameClear) {
+      player.updatePlayer(deltaTime, keys, walls);
+      updatePlayerAnimation(player, deltaTime, false); 
+      updateCoins(deltaTime);
+      updateCoinCollision();
+      updateExitCollision();
+      updateMapReveal(deltaTime);
+      updateGIBoost(deltaTime);
+    } else {
+      updatePlayerAnimation(player, deltaTime, true); 
+      // 클리어 시 화면이 서서히 완전히 밝아지도록 처리
+      mapRevealStrength = Math.min(1.0, mapRevealStrength + deltaTime / 0.5);
+      ambientLight.intensity = THREE.MathUtils.lerp(NORMAL_AMBIENT_INTENSITY, REVEAL_AMBIENT_INTENSITY, mapRevealStrength);
+    }
+    followCamera.updateCamera(player, deltaTime);
   } else {
-    updatePlayerAnimation(player, deltaTime, true); 
-    // 클리어 시 화면이 서서히 완전히 밝아지도록 처리
-    mapRevealStrength = Math.min(1.0, mapRevealStrength + deltaTime / 0.5);
-    ambientLight.intensity = THREE.MathUtils.lerp(NORMAL_AMBIENT_INTENSITY, REVEAL_AMBIENT_INTENSITY, mapRevealStrength);
+    // 게임 시작 전에도 카메라와 플래시라이트는 작동하게 하여 화면이 정적으로 보이지 않게 함
+    followCamera.updateCamera(player, deltaTime);
   }
 
-  followCamera.updateCamera(player, deltaTime);
   updateFlashlight();
 
   surfelUpdateAccumulator += deltaTime;

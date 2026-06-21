@@ -62,6 +62,79 @@ canvas {
 #help-ui p {
   margin: 5px 0;
 }
+#start-ui {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  pointer-events: auto;
+}
+
+#start-ui .modal {
+  background: rgba(30, 35, 30, 0.95);
+  border: 2px solid #4f7f5a;
+  border-radius: 12px;
+  padding: 40px;
+  color: #e8f5e9;
+  font-family: sans-serif;
+  text-align: center;
+  max-width: 500px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+}
+
+#start-ui h1 {
+  font-size: 48px;
+  margin: 0 0 10px 0;
+  color: #ffd700;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+#start-ui p {
+  font-size: 18px;
+  margin-bottom: 25px;
+  color: #a5d6a7;
+}
+
+.rules-list {
+  text-align: left;
+  line-height: 1.8;
+  margin-bottom: 35px;
+  font-size: 16px;
+  padding-left: 20px;
+}
+
+.rules-list strong {
+  color: #ffd700;
+}
+
+#start-btn {
+  padding: 14px 40px;
+  font-size: 22px;
+  font-weight: bold;
+  color: #000;
+  background-color: #ffd700;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+  transition: transform 0.1s, background-color 0.2s;
+}
+
+#start-btn:hover {
+  background-color: #ffea00;
+  transform: scale(1.05);
+}
+
+#start-btn:active {
+  transform: scale(0.95);
+}
+
 #clear-ui {
   position: absolute;
   top: 50%;
