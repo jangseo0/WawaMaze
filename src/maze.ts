@@ -172,7 +172,7 @@ export function createMazeFromMap(scene: THREE.Scene): { playerStartPos: THREE.V
         const coinMaterial = new THREE.MeshPhongMaterial({ 
           color: 0xffd700,
           emissive: 0xffaa00,
-          emissiveIntensity: 0.8
+          emissiveIntensity: 1.5
         });
         const coinMesh = new THREE.Mesh(coinGeometry, coinMaterial);
         
@@ -183,7 +183,7 @@ export function createMazeFromMap(scene: THREE.Scene): { playerStartPos: THREE.V
         coinMesh.userData.collected = false;
 
         // Attach a PointLight to the coin so it casts light on surrounding walls
-        const coinLight = new THREE.PointLight(0xffd700, 2.0, 6.0);
+        const coinLight = new THREE.PointLight(0xffd700, 4.0, 9.0);
         coinLight.position.set(0, 0, 0); // Relative to coin mesh
         coinMesh.add(coinLight);
 
