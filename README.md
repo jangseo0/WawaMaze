@@ -1,5 +1,5 @@
 # 컴퓨터그래픽스 최종 과제 리포트: WawaMaze
-
+https://wawamaze.netlify.app/
 
 ## 1. 게임 기획 
 - WawaMaze는 어두운 미로 속에서 치와와가 길을 잃지 않고 빛나는 코인을 찾아 탈출하는 3D 탐험 게임입니다.
