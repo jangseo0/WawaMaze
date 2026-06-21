@@ -168,13 +168,25 @@ export function createMazeFromMap(scene: THREE.Scene): { playerStartPos: THREE.V
         playerStartPos.set(posX, 1, posZ);
       } else if (cell === '2') {
         const coinGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 16);
-        const coinMaterial = new THREE.MeshPhongMaterial({ color: 0xffd700 });
+        // Make the coin glow brightly
+        const coinMaterial = new THREE.MeshPhongMaterial({ 
+          color: 0xffd700,
+          emissive: 0xffaa00,
+          emissiveIntensity: 0.8
+        });
         const coinMesh = new THREE.Mesh(coinGeometry, coinMaterial);
         
+        // Raise the coin higher so walls don't block it as much
         coinMesh.rotation.x = Math.PI / 2;
-        coinMesh.position.set(posX, 0.8, posZ);
+        coinMesh.position.set(posX, 1.8, posZ);
         coinMesh.userData.isCoin = true;
         coinMesh.userData.collected = false;
+
+        // Attach a PointLight to the coin so it casts light on surrounding walls
+        const coinLight = new THREE.PointLight(0xffd700, 2.0, 6.0);
+        coinLight.position.set(0, 0, 0); // Relative to coin mesh
+        coinMesh.add(coinLight);
+
         scene.add(coinMesh);
 
         // [Bounding Volume] Bounding Sphere

@@ -213,8 +213,11 @@ function updateGIBoost(deltaTime: number): void {
 }
 
 function updateCoins(deltaTime: number) {
-  coins.forEach((coin) => {
-    if (!coin.collected) coin.mesh.rotation.y += deltaTime * 3;
+  coins.forEach((coin, index) => {
+    if (!coin.collected) {
+      coin.mesh.rotation.y += deltaTime * 3;
+      coin.mesh.position.y = 1.8 + Math.sin(Date.now() * 0.003 + index) * 0.2;
+    }
   });
 }
 
